@@ -149,3 +149,31 @@ describe("what a failed release can leave on Docker Hub", () => {
             "the manual deploy tags before its own builds have pushed their digests");
     });
 });
+
+describe("the fork's container registry", () => {
+    it("publishes under the fork owner instead of the upstream Docker Hub account", () => {
+        for (const workflow of [dockerBuild, dockerPublish]) {
+            assert.match(workflow, /ghcr\.io\/\$\{\{\s*github\.repository_owner\s*\}\}\/myspeed/);
+            assert.doesNotMatch(workflow, /i7gamer\/myspeed/);
+        }
+    });
+
+    it("authenticates to GHCR with the workflow token", () => {
+        for (const workflow of [dockerBuild, dockerPublish]) {
+            assert.match(workflow, /registry:\s*ghcr\.io/);
+            assert.match(workflow, /username:\s*\$\{\{\s*github\.actor\s*\}\}/);
+            assert.match(workflow, /password:\s*\$\{\{\s*secrets\.GITHUB_TOKEN\s*\}\}/);
+            assert.doesNotMatch(workflow, /DOCKERHUB_/);
+        }
+    });
+
+    it("grants package write access to every job that pushes", () => {
+        for (const workflow of [dockerBuild, dockerPublish, deploy])
+            assert.match(workflow, /packages:\s*write/);
+    });
+
+    it("lets a manual publish choose one or more tags", () => {
+        assert.match(deploy, /tags:\s*\n\s+description:/);
+        assert.match(deploy, /tags:\s*\$\{\{\s*inputs\.tags\s*\}\}/);
+    });
+});

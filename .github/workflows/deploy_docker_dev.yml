@@ -1,7 +1,6 @@
-name: Publish latest to DockerHub
+name: Publish Docker to GHCR
 
-# Manual only: this publishes i7gamer/myspeed:latest to Docker Hub, which should
-# be a deliberate act rather than a side effect of every push.
+# Manual only: publishes the selected tags under ghcr.io/underw8/myspeed.
 #
 # It builds through build-docker.yml, the same path the release chain takes, so
 # :latest stays a multi-arch manifest covering amd64 and arm64. It used to build
@@ -12,6 +11,18 @@ name: Publish latest to DockerHub
 # overwrites released content with whatever is on that branch.
 on:
   workflow_dispatch:
+    inputs:
+      tags:
+        description: "Newline-separated image tags"
+        required: true
+        default: |
+          latest
+          1.5.0-underw8.1
+        type: string
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   # The same two steps the release chain takes, for the same reason: the builds
@@ -21,10 +32,9 @@ jobs:
   # by something that did not build both architectures.
   build:
     name: "Build"
-    # Only the checkout inside build-docker.yml needs the token; the push
-    # authenticates against Docker Hub separately.
     permissions:
       contents: read
+      packages: write
     uses: ./.github/workflows/build-docker.yml
     with:
       ref: ${{ github.ref }}
@@ -35,7 +45,8 @@ jobs:
     needs: build
     permissions:
       contents: read
+      packages: write
     uses: ./.github/workflows/publish-docker.yml
     with:
-      tags: latest
+      tags: ${{ inputs.tags }}
     secrets: inherit
